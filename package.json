@@ -1,0 +1,20 @@
+{
+  "name": "tpl-passholder",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "rimraf": "^5.0.7",
+    "tslib": "^2.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "typescript": "^5.4.5"
+  },
+  "scripts": {
+    "start": "node build/src/main.js",
+    "clean": "rimraf coverage build tmp",
+    "build": "tsc -p tsconfig.json",
+    "build:watch": "tsc -w -p tsconfig.json"
+  }
+}
