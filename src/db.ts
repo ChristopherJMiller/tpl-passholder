@@ -9,6 +9,12 @@ export interface DbAttractionOffer {
   startTime: string;
   endTime: string;
   firstAvailable: string;
+  name: string;
+}
+
+export interface DbUserSession {
+  telegramID: string;
+  librarySessionID: string;
 }
 
 async function set_db_hash(client: DatabaseClient, hash: string, obj: object) {
@@ -20,8 +26,13 @@ async function set_db_hash(client: DatabaseClient, hash: string, obj: object) {
 async function get_db_hash(
   client: DatabaseClient,
   hash: string,
-): Promise<DbAttractionOffer> {
-  return (await client.hGetAll(hash)) as unknown as DbAttractionOffer;
+): Promise<object | undefined> {
+  const getAll = await client.hGetAll(hash);
+  if (getAll) {
+    return getAll as object;
+  } else {
+    return undefined;
+  }
 }
 
 export async function set_attraction_db(
@@ -35,8 +46,14 @@ export async function set_attraction_db(
 export async function get_attraction_db(
   client: DatabaseClient,
   attractionId: string,
-): Promise<DbAttractionOffer> {
-  return get_db_hash(client, `attraction:${attractionId}`);
+): Promise<DbAttractionOffer | undefined> {
+  const obj = await get_db_hash(client, `attraction:${attractionId}`);
+
+  if (obj) {
+    return obj as DbAttractionOffer;
+  } else {
+    return undefined;
+  }
 }
 
 export async function get_all_attractions_db(
@@ -45,4 +62,24 @@ export async function get_all_attractions_db(
   const keys = await client.sMembers(`attraction:set`);
   const offers = keys.map((key) => get_attraction_db(client, key));
   return Promise.all(offers);
+}
+
+export async function set_user_db(
+  client: DatabaseClient,
+  session: DbUserSession,
+) {
+  return set_db_hash(client, `user:${session.telegramID}`, session);
+}
+
+export async function get_user_db(
+  client: DatabaseClient,
+  telegramID: string,
+): Promise<DbUserSession | undefined> {
+  const obj = await get_db_hash(client, `user:${telegramID}`);
+
+  if (obj) {
+    return obj as DbUserSession;
+  } else {
+    return undefined;
+  }
 }
