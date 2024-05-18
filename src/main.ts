@@ -37,7 +37,18 @@ async function main() {
   });
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function refresh() {
+  const delayMs = Math.floor(Math.random() * 1000); // Up to 1 second
+  const delay = delayMs * 60 * 5; // up to 5 minutes
+
+  console.log(`Sleeping for ${delay / 60 / 1000} minutes before starting`);
+
+  await sleep(delay);
+
   console.log('Starting in refresh mode');
 
   const id = process.env.ID!;
