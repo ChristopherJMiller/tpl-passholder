@@ -11,16 +11,16 @@ import {
 async function main() {
   console.log('Starting in telegram bot mode');
   console.log('Connecting to Redis DB');
-  const client = createClient({
+  const client = await createClient({
     url: process.env.URL ?? undefined,
-  });
+  }).connect();
 
   console.log('Connecting to Telegram API');
   const bot = new Telegraf(process.env.BOT_TOKEN);
 
   // Supply redis client to telegram middleware
   bot.use(async (ctx, next) => {
-    ctx.state['client'] = await client.connect();
+    ctx.state['client'] = client;
     await next();
   });
 
