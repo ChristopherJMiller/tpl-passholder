@@ -39,4 +39,4 @@ spec:
             runAsGroup: 101
           envFrom:
             - secretRef:
-              name: tpl-secrets
+                name: tpl-secrets

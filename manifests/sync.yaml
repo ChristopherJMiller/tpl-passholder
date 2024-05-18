@@ -31,4 +31,4 @@ spec:
                   value: REFRESH
               envFrom:
                 - secretRef:
-                  name: tpl-secrets
+                    name: tpl-secrets
