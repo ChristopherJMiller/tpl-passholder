@@ -3,13 +3,13 @@ import { createClient } from 'redis';
 export type DatabaseClient = ReturnType<typeof createClient>;
 
 export interface DbAttractionOffer {
-  attractionID: string;
-  offersFrequency: string;
-  offersQuantity: string;
-  startTime: string;
-  endTime: string;
-  firstAvailable: string;
   name: string;
+  attractionID: string;
+  offersFrequency?: string;
+  offersQuantity?: string;
+  startTime?: string;
+  endTime?: string;
+  firstAvailable?: string;
 }
 
 export interface DbUserSession {

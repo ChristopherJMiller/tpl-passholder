@@ -1,6 +1,11 @@
 import { Context } from 'telegraf';
 import { login } from './req';
-import { get_all_attractions_db, get_user_db, set_user_db } from './db';
+import {
+  DbAttractionOffer,
+  get_all_attractions_db,
+  get_user_db,
+  set_user_db,
+} from './db';
 import { format, parse } from 'date-fns';
 
 export async function chatStart(ctx: Context) {
@@ -46,16 +51,49 @@ const formatDate = (dateStr: string): string => {
   }
 };
 
+function displayAttraction(attraction: DbAttractionOffer): string {
+  let terms = [`\\(${attraction.attractionID}\\)`, `*${attraction.name}*`];
+
+  if (
+    attraction.offersFrequency &&
+    attraction.offersQuantity &&
+    attraction.offersFrequency !== 'undefined' &&
+    attraction.offersQuantity !== 'undefined'
+  ) {
+    terms.push(
+      `\\(${attraction.offersQuantity} ${attraction.offersFrequency}\\)`,
+    );
+  }
+
+  if (
+    attraction.firstAvailable !== undefined &&
+    attraction.firstAvailable.toLocaleLowerCase() !== 'n/a'
+  ) {
+    terms.push(formatDate(attraction.firstAvailable));
+  }
+
+  return terms.join(' ');
+}
+
 export async function chatAttractions(ctx: Context) {
   const attractions = await get_all_attractions_db(ctx.state['client']);
 
-  const attrLines = attractions.map((attrLine) => {
-    return `*${attrLine.name} \\(${attrLine.offersQuantity} ${
-      attrLine.offersFrequency
-    }\\)*: ${formatDate(attrLine.firstAvailable)}`;
-  });
+  const dataCollected = attractions.filter(
+    (attr) =>
+      attr.firstAvailable !== undefined &&
+      attr.firstAvailable.toLocaleLowerCase() !== 'n/a',
+  );
+  const noData = attractions.filter(
+    (attr) =>
+      attr.firstAvailable === undefined ||
+      attr.firstAvailable.toLocaleLowerCase() === 'n/a',
+  );
 
-  const markdown = ['Current Attractions:\n'].concat(attrLines).join('\n');
+  const markdown = ['Current Attractions:\n']
+    .concat(dataCollected.map(displayAttraction))
+    .concat(['\nNo Data Collected Yet:\n'])
+    .concat(noData.map(displayAttraction))
+    .join('\n');
 
   ctx.replyWithMarkdownV2(markdown);
 }

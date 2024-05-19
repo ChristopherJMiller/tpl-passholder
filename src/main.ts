@@ -37,17 +37,19 @@ async function main() {
   });
 }
 
-function sleep(ms) {
+function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function refresh() {
-  const delayMs = Math.floor(Math.random() * 1000); // Up to 1 second
-  const delay = delayMs * 60 * 5; // up to 5 minutes
+  if (process.env.SKIP_WAIT === undefined) {
+    const delayMs = Math.floor(Math.random() * 1000); // Up to 1 second
+    const delay = delayMs * 60 * 5; // up to 5 minutes
 
-  console.log(`Sleeping for ${delay / 60 / 1000} minutes before starting`);
+    console.log(`Sleeping for ${delay / 60 / 1000} minutes before starting`);
 
-  await sleep(delay);
+    await sleep(delay);
+  }
 
   console.log('Starting in refresh mode');
 
@@ -66,19 +68,17 @@ async function refresh() {
   const attrList = await attractions(session.patronID);
 
   // All current offers
-  const offers: Partial<DbAttractionOffer>[] = attrList.attractionList.map(
-    (attr) => {
-      return {
-        attractionID: attr.attractionID,
-        offersFrequency: attr.offers?.at(0)?.offersFrequency,
-        offersQuantity: attr.offers?.at(0)?.offersQuantity,
-        startTime: attr.offers?.at(0)?.startTime,
-        endTime: attr.offers?.at(0)?.endTime,
-        firstAvailable: attr.offers?.at(0)?.date,
-        name: attr.name,
-      };
-    },
-  );
+  const offers: DbAttractionOffer[] = attrList.attractionList.map((attr) => {
+    return {
+      name: attr.name,
+      attractionID: attr.attractionID,
+      offersFrequency: attr.offers?.at(0)?.offersFrequency,
+      offersQuantity: attr.offers?.at(0)?.offersQuantity,
+      startTime: attr.offers?.at(0)?.startTime,
+      endTime: attr.offers?.at(0)?.endTime,
+      firstAvailable: attr.offers?.at(0)?.date,
+    };
+  });
 
   console.log(`Found ${offers.length} Attraction Offers`);
 
@@ -99,25 +99,11 @@ async function refresh() {
       currentTable[offer.attractionID] = offer;
     });
 
-  const additions: DbAttractionOffer[] = offers
-    .filter(
-      (offer) =>
-        offer.attractionID !== undefined &&
-        offer.firstAvailable !== undefined &&
-        currentTable[offer.attractionID] === undefined,
-    )
-    .map((offer) => {
-      // New addition
-      return {
-        attractionID: offer.attractionID!,
-        offersFrequency: offer.offersFrequency!,
-        offersQuantity: offer.offersQuantity!,
-        startTime: offer.startTime!,
-        endTime: offer.endTime!,
-        firstAvailable: offer.firstAvailable!,
-        name: offer.name!,
-      };
-    });
+  const additions: DbAttractionOffer[] = offers.filter(
+    (offer) =>
+      offer.attractionID !== undefined &&
+      currentTable[offer.attractionID] === undefined,
+  );
   console.log(`Found ${additions.length} additions`);
 
   const updateEntries = currentEntries.map((entry) => {
