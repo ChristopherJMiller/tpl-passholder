@@ -1,9 +1,14 @@
-import { Context } from 'telegraf';
+import { Context, Telegram } from 'telegraf';
 import { login } from './req';
 import {
+  DatabaseClient,
   DbAttractionOffer,
+  add_user_notification,
+  get_all_attraction_notifications,
   get_all_attractions_db,
   get_user_db,
+  get_user_notifications,
+  remove_user_notification,
   set_user_db,
 } from './db';
 import { format, parse } from 'date-fns';
@@ -96,4 +101,130 @@ export async function chatAttractions(ctx: Context) {
     .join('\n');
 
   ctx.replyWithMarkdownV2(markdown);
+}
+
+export async function chatSubscribe(ctx: Context) {
+  const me = await get_user_db(ctx.state['client'], `${ctx.from.id}`);
+
+  if (!me) {
+    await ctx.reply('Please login with /login <library id> <pin> in order to subscribe to attractions');
+    return;
+  }
+
+  const chunks = ctx.text.split(' ');
+
+  const id = chunks[1];
+
+  if (!id) {
+    await ctx.reply('/subscribe <attraction id>');
+    return;
+  }
+
+  const attractions = await get_all_attractions_db(ctx.state['client']);
+  const foundAttraction = attractions.find((attr) => attr.attractionID === id);
+
+  if (!foundAttraction) {
+    const text = [
+      `Could not find an attraction with ID "${id}"`,
+      'Please supply an ID from the following attraction list:',
+      ...attractions.map((attr) => `(${attr.attractionID}) ${attr.name}`),
+    ].join("\n");
+
+    await ctx.reply(text);
+    return;
+  }
+
+  await add_user_notification(ctx.state['client'], id, {
+    telegramID: me.telegramID,
+    librarySessionID: me.librarySessionID,
+    chatID: ctx.message.chat.id,
+  });
+
+  await ctx.reply(`Sucessfully subscribed to ${foundAttraction.name} availability`);
+  return;
+}
+
+export async function chatUnsubscribe(ctx: Context) {
+  const me = await get_user_db(ctx.state['client'], `${ctx.from.id}`);
+
+  if (!me) {
+    await ctx.reply('Please login with /login <library id> <pin> in order to subscribe to attractions');
+    return;
+  }
+
+  const chunks = ctx.text.split(' ');
+
+  const id = chunks[1];
+
+  if (!id) {
+    await ctx.reply('/unsubscribe <attraction id>');
+    return;
+  }
+
+  const attractions = await get_all_attractions_db(ctx.state['client']);
+  const foundAttraction = attractions.find((attr) => attr.attractionID === id);
+
+  if (!foundAttraction) {
+    const text = [
+      `Could not find an attraction with ID "${id}"`,
+      'Please supply an ID from the following attraction list:',
+      ...attractions.map((attr) => `(${attr.attractionID}) ${attr.name}`),
+    ].join("\n");
+
+    await ctx.reply(text);
+    return;
+  }
+
+  await remove_user_notification(ctx.state['client'], id, {
+    telegramID: me.telegramID,
+    librarySessionID: me.librarySessionID,
+    chatID: ctx.message.chat.id,
+  });
+
+  await ctx.reply(`Sucessfully unsubscribed from ${foundAttraction.name} availability`);
+  return;
+}
+
+export async function chatSubscriptions(ctx: Context) {
+  const me = await get_user_db(ctx.state['client'], `${ctx.from.id}`);
+
+  if (!me) {
+    await ctx.reply('Please login with /login <library id> <pin> in order to subscribe to attractions');
+    return;
+  }
+
+  const [attractions, subscriptions] = await Promise.all([
+    get_all_attractions_db(ctx.state['client']),
+    get_user_notifications(ctx.state['client'], me.telegramID)
+  ]);
+
+  if (!subscriptions || subscriptions.length === 0) {
+    await ctx.reply('No offers have been subscribed to');
+    return;
+  }
+
+  const attractionTable = {};
+  attractions.forEach((attr) => {
+    attractionTable[attr.attractionID] = attr;
+  });
+
+  const text = [
+    'Subscriptions:',
+    ...subscriptions.filter((id) => attractionTable[id] !== undefined).map((id) => `(${id}) ${attractionTable[id].name}`),
+  ].join("\n");
+
+  await ctx.reply(text);
+}
+
+export async function handleNotifyingUsers(telegram: Telegram, client: DatabaseClient) {
+  const attractions = await get_all_attractions_db(client);
+
+  for (const attr of attractions) {
+    if (attr.firstAvailable && attr.firstAvailable.toLocaleLowerCase() !== 'n/a') {
+      const attractionSubscriptions = await get_all_attraction_notifications(client, attr.attractionID);
+      for (const subscription of attractionSubscriptions) {
+        telegram.sendMessage(subscription.chatID, `${attr.name} has a reservation available on ${formatDate(attr.firstAvailable)}!`);
+      }
+    }
+  }
 }

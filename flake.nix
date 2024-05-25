@@ -13,10 +13,7 @@
           inherit system;
         };
 
-        nativeBuildInputs = with pkgs; [
-            yarn
-            nodejs_20
-        ];
+        nativeBuildInputs = (import ./nix/inputs.nix pkgs).buildInputs;
     in
     with pkgs;
     {

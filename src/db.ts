@@ -83,3 +83,56 @@ export async function get_user_db(
     return undefined;
   }
 }
+
+export interface DbAttractionSubscription {
+  // For identification
+  telegramID: string;
+  // Currently unused, but could be in the future for auto-reservation (if so wished)
+  librarySessionID: string;
+  // Used to send chat notification
+  chatID: number;
+}
+
+export async function add_user_notification(
+  client: DatabaseClient,
+  attractionID: string,
+  subscription: DbAttractionSubscription,
+) {
+  await Promise.all([
+    // Track in list of all subscriptions for user
+    client.sAdd(`user_subscriptions:${subscription.telegramID}`, attractionID),
+    // Add to Subscription's Notification List
+    client.sAdd(`subscription:${attractionID}`, JSON.stringify(subscription)),
+  ]);
+}
+
+export async function remove_user_notification(
+  client: DatabaseClient,
+  attractionID: string,
+  subscription: DbAttractionSubscription,
+) {
+  await Promise.all([
+    client.sRem(`subscription:${attractionID}`, JSON.stringify(subscription)),
+    client.sRem(`user_subscriptions:${subscription.telegramID}`, attractionID),
+  ]);
+}
+
+export async function get_user_notifications(
+  client: DatabaseClient,
+  telegramID: string,
+): Promise<string[] | undefined> {
+  return await client.sMembers(`user_subscriptions:${telegramID}`)
+}
+
+export async function get_all_attraction_notifications(
+  client: DatabaseClient,
+  attractionID: string,
+): Promise<DbAttractionSubscription[] | undefined> {
+  const subscriptions = await client.sMembers(`subscription:${attractionID}`);
+
+  if (subscriptions) {
+    return subscriptions.map((sub) => JSON.parse(sub));
+  } else {
+    return undefined;
+  }
+}

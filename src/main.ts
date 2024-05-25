@@ -1,12 +1,13 @@
 import { createClient } from 'redis';
 import { attractions, login } from './req';
 import { Telegraf } from 'telegraf';
-import { chatAttractions, chatLogin, chatMe, chatStart } from './chat';
+import { chatAttractions, chatLogin, chatMe, chatStart, chatSubscribe, chatSubscriptions, chatUnsubscribe, handleNotifyingUsers } from './chat';
 import {
   DbAttractionOffer,
   get_all_attractions_db,
   set_attraction_db,
 } from './db';
+import express from 'express';
 
 async function main() {
   console.log('Starting in telegram bot mode');
@@ -28,11 +29,30 @@ async function main() {
   bot.command('login', chatLogin);
   bot.command('me', chatMe);
   bot.command('attractions', chatAttractions);
+  bot.command('subscribe', chatSubscribe);
+  bot.command('unsubscribe', chatUnsubscribe);
+  bot.command('subscriptions', chatSubscriptions);
 
-  process.once('SIGINT', () => bot.stop('SIGINT'));
-  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+  // Endpoint to handle subscriptions
+  const refreshApp = express();
+  refreshApp.get('/', (_req, res) => {
+    handleNotifyingUsers(bot.telegram, client);
+    res.send('OK');
+  });
+  const server = refreshApp.listen(3000, () => {
+    console.log('Refresh endpoint listening on http://0.0.0.0:3000');
+  })
 
-  await bot.launch(() => {
+  process.once('SIGINT', () => {
+    bot.stop('SIGINT');
+    server.closeAllConnections();
+  });
+  process.once('SIGTERM', () => {
+    bot.stop('SIGTERM');
+    server.closeAllConnections();
+  });
+
+  bot.launch(() => {
     console.log('Telegram Launched');
   });
 }
@@ -128,6 +148,12 @@ async function refresh() {
   }
 
   await client.disconnect();
+
+  // If a notify url is defined, use it to notify the telegram bot that availability was been refreshed
+  if (process.env.NOTIFY_URL) {
+    console.log('Notifying telegram bot of refreshed availability');
+    await fetch(process.env.NOTIFY_URL);
+  }
 
   console.log('Done!');
 }
